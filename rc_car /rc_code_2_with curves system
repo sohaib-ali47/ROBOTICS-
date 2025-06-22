@@ -1,0 +1,115 @@
+#include <SoftwareSerial.h>
+
+// Motor control pins
+#define ENA 3
+#define IN1 4
+#define IN2 5
+#define IN3 6
+#define IN4 7
+#define ENB 9
+
+SoftwareSerial BT(10, 11); // HC-05
+
+char command;
+String inputString = "";
+int currentSpeed = 200;  // Default speed (0–255)
+
+void setup() {
+  Serial.begin(9600);
+  BT.begin(9600);
+
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENB, OUTPUT);
+
+  stopMotors();
+  Serial.println("RC Car Ready – Waiting for commands...");
+}
+
+void loop() {
+  while (BT.available()) {
+    char c = BT.read();
+
+    if (isDigit(c)) {
+      inputString += c;  // Build speed number
+    } else if (c == '#') {  // End of speed input (e.g., "180#")
+      int newSpeed = inputString.toInt();
+      currentSpeed = constrain(newSpeed, 0, 255);
+      Serial.print("Speed updated to: ");
+      Serial.println(currentSpeed);
+      inputString = "";
+    } else if (c != '\r' && c != '\n') {
+      command = c;
+      Serial.print("Command: ");
+      Serial.println(command);
+
+      switch (command) {
+        case 'F': forward(); break;
+        case 'B': backward(); break;
+        case 'L': rotateLeft(); break;
+        case 'R': rotateRight(); break;
+        case 'S': stopMotors(); break;
+        case 'G': forwardLeft(); break;
+        case 'I': forwardRight(); break;
+        case 'H': backwardLeft(); break;
+        case 'J': backwardRight(); break;
+        default: stopMotors(); break;
+      }
+      inputString = ""; // Clear in case command follows digits
+    }
+  }
+}
+
+// === Movement Functions using currentSpeed ===
+
+void forward() {
+  setMotors(HIGH, LOW, HIGH, LOW, currentSpeed, currentSpeed);
+}
+
+void backward() {
+  setMotors(LOW, HIGH, LOW, HIGH, currentSpeed, currentSpeed);
+}
+
+void rotateLeft() {
+  setMotors(HIGH, LOW, LOW, HIGH, currentSpeed, currentSpeed);
+}
+
+void rotateRight() {
+  setMotors(LOW, HIGH, HIGH, LOW, currentSpeed, currentSpeed);
+}
+
+void stopMotors() {
+  setMotors(LOW, LOW, LOW, LOW, 0, 0);
+}
+
+// === Curve Turn Functions (one motor moves only) ===
+
+void forwardLeft() {
+  setMotors(HIGH, LOW, LOW, LOW, currentSpeed, 0);
+}
+
+void forwardRight() {
+  setMotors(LOW, LOW, HIGH, LOW, 0, currentSpeed);
+}
+
+void backwardLeft() {
+  setMotors(LOW, HIGH, LOW, LOW, currentSpeed, 0);
+}
+
+void backwardRight() {
+  setMotors(LOW, LOW, LOW, HIGH, 0, currentSpeed);
+}
+
+// === Motor Driver Helper ===
+
+void setMotors(bool in1, bool in2, bool in3, bool in4, int speedA, int speedB) {
+  digitalWrite(IN1, in1);
+  digitalWrite(IN2, in2);
+  digitalWrite(IN3, in3);
+  digitalWrite(IN4, in4);
+  analogWrite(ENA, speedA);
+  analogWrite(ENB, speedB);
+}
