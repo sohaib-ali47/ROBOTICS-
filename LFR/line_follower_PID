@@ -1,0 +1,188 @@
+// === Sensor Pins ===
+#define SENSOR_OUTER_RIGHT 12
+#define SENSOR_INNER_RIGHT 11
+#define SENSOR_CENTER      13
+#define SENSOR_INNER_LEFT   2
+#define SENSOR_OUTER_LEFT   8
+
+// === Motor Pins ===
+#define ENA 9
+#define IN1 7
+#define IN2 6
+#define IN3 5
+#define IN4 4
+#define ENB 3
+
+int baseSpeed = 75;   // base motor speed
+int minSpeed = 65;    // minimum motor speed (to keep robot moving)
+int maxSpeed = 115;   // maximum motor speed
+
+// PID constants (tuned further)
+float Kp = 18.0;
+float Ki = 0.5;
+float Kd = 10.0;
+
+float integral = 0;
+int lastError = 0;
+unsigned long lastTime = 0;
+
+String lastMove = "stop";
+String tIntersectionTurn = "left";  // change to "right" if desired
+
+void setup() {
+  pinMode(SENSOR_OUTER_RIGHT, INPUT);
+  pinMode(SENSOR_INNER_RIGHT, INPUT);
+  pinMode(SENSOR_CENTER, INPUT);
+  pinMode(SENSOR_INNER_LEFT, INPUT);
+  pinMode(SENSOR_OUTER_LEFT, INPUT);
+
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENB, OUTPUT);
+
+  Serial.begin(9600);
+  lastTime = millis();
+}
+
+void loop() {
+  int sOR = digitalRead(SENSOR_OUTER_RIGHT);
+  int sIR = digitalRead(SENSOR_INNER_RIGHT);
+  int sC  = digitalRead(SENSOR_CENTER);
+  int sIL = digitalRead(SENSOR_INNER_LEFT);
+  int sOL = digitalRead(SENSOR_OUTER_LEFT);
+
+  unsigned long currentTime = millis();
+  float deltaTime = (currentTime - lastTime) / 1000.0;
+  if (deltaTime <= 0) deltaTime = 0.001; // avoid div by zero
+
+  // --- Detect T intersection (all black sensors) ---
+  if (sOR == 0 && sIR == 0 && sC == 0 && sIL == 0 && sOL == 0) {
+    while (digitalRead(SENSOR_CENTER) != 0) {
+      if (tIntersectionTurn == "left") {
+        sharpLeftTurn();
+      } else {
+        sharpRightTurn();
+      }
+    }
+    lastMove = tIntersectionTurn;
+    stopMotors();
+    delay(50);
+    integral = 0;  // reset integral to avoid windup
+    lastError = 0;
+    lastTime = currentTime;
+    return;
+  }
+
+  // --- All sensors white (off the line) ---
+  if (sOR == 1 && sIR == 1 && sC == 1 && sIL == 1 && sOL == 1) {
+    if (lastMove == "forward") {
+      forward(baseSpeed, baseSpeed);
+    } else if (lastMove == "left") {
+      sharpLeftTurn();
+    } else if (lastMove == "right") {
+      sharpRightTurn();
+    } else {
+      stopMotors();
+    }
+    delay(10);
+    return;
+  }
+
+  // --- Calculate error ---
+  // Sensors active low: 0 means on line, so invert to get weight
+  int error = 0;
+  if (sOR == 0) error += 4;
+  if (sIR == 0) error += 2;
+  if (sC  == 0) error += 0;
+  if (sIL == 0) error -= 2;
+  if (sOL == 0) error -= 4;
+
+  // --- PID Calculations ---
+  // Integral with anti-windup
+  integral += error * deltaTime;
+  if (integral > 50) integral = 50;
+  else if (integral < -50) integral = -50;
+
+  // Derivative
+  float derivative = (error - lastError) / deltaTime;
+  // Clamp derivative to reduce spikes
+  if (derivative > 100) derivative = 100;
+  else if (derivative < -100) derivative = -100;
+
+  float pidOutput = Kp * error + Ki * integral + Kd * derivative;
+
+  // Limit correction output
+  float maxCorrection = 40.0;
+  if (pidOutput > maxCorrection) pidOutput = maxCorrection;
+  else if (pidOutput < -maxCorrection) pidOutput = -maxCorrection;
+
+  // Deadzone to avoid jitter on small corrections
+  if (abs(pidOutput) < 5) pidOutput = 0;
+
+  // Calculate motor speeds
+  int leftSpeed = constrain(baseSpeed + pidOutput, minSpeed, maxSpeed);
+  int rightSpeed = constrain(baseSpeed - pidOutput, minSpeed, maxSpeed);
+
+  // Move forward with calculated speeds
+  forward(leftSpeed, rightSpeed);
+
+  // Update lastError/time
+  lastError = error;
+  lastTime = currentTime;
+
+  // Store last move
+  if (pidOutput > 10) lastMove = "right";
+  else if (pidOutput < -10) lastMove = "left";
+  else lastMove = "forward";
+
+  // Debug
+  Serial.print("Error: "); Serial.print(error);
+  Serial.print(" Integral: "); Serial.print(integral, 2);
+  Serial.print(" Derivative: "); Serial.print(derivative, 2);
+  Serial.print(" PID: "); Serial.print(pidOutput, 2);
+  Serial.print(" LeftSpeed: "); Serial.print(leftSpeed);
+  Serial.print(" RightSpeed: "); Serial.print(rightSpeed);
+  Serial.print(" LastMove: "); Serial.println(lastMove);
+
+  delay(10);
+}
+
+// Movement Functions
+
+void forward(int left, int right) {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  analogWrite(ENA, left);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENB, right);
+}
+
+void sharpLeftTurn() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  analogWrite(ENA, minSpeed + 10);
+
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+  analogWrite(ENB, minSpeed + 10);
+}
+
+void sharpRightTurn() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  analogWrite(ENA, minSpeed + 10);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENB, minSpeed + 10);
+}
+
+void stopMotors() {
+  analogWrite(ENA, 0);
+  analogWrite(ENB, 0);
+} 
