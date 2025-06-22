@@ -1,0 +1,71 @@
+#include <SoftwareSerial.h>
+SoftwareSerial BT(10, 11);
+
+#define ENA 3
+#define IN1 4
+#define IN2 5
+#define IN3 6
+#define IN4 7
+#define ENB 9
+
+char command;
+int currentSpeed = 200;
+
+void setup() {
+  BT.begin(9600);
+
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENB, OUTPUT);
+
+  stopMotors();
+}
+
+void loop() {
+  if (BT.available()) {
+    char c = BT.read();
+    if (c >= '0' && c <= '9') currentSpeed = (c - '0') * 25;
+    else if (c == 'q') currentSpeed = 255;
+    else {
+      command = c;
+      handle(command);
+    }
+  }
+}
+
+void handle(char c) {
+  switch (c) {
+    case 'F': forward(); break;
+    case 'B': backward(); break;
+    case 'L': rotateLeft(); break;
+    case 'R': rotateRight(); break;
+    case 'S': stopMotors(); break;
+    case 'G': forwardLeft(); break;
+    case 'I': forwardRight(); break;
+    case 'H': backwardLeft(); break;
+    case 'J': backwardRight(); break;
+    case 'D': stopMotors(); break;
+  }
+}
+
+void forward()        { setMotors(HIGH, LOW, HIGH, LOW, currentSpeed, currentSpeed); }
+void backward()       { setMotors(LOW, HIGH, LOW, HIGH, currentSpeed, currentSpeed); }
+void rotateLeft()     { setMotors(HIGH, LOW, LOW, HIGH, currentSpeed, currentSpeed); }
+void rotateRight()    { setMotors(LOW, HIGH, HIGH, LOW, currentSpeed, currentSpeed); }
+void forwardLeft()    { setMotors(HIGH, LOW, LOW, LOW, currentSpeed, 0); }
+void forwardRight()   { setMotors(LOW, LOW, HIGH, LOW, 0, currentSpeed); }
+void backwardLeft()   { setMotors(LOW, HIGH, LOW, LOW, currentSpeed, 0); }
+void backwardRight()  { setMotors(LOW, LOW, LOW, HIGH, 0, currentSpeed); }
+void stopMotors()     { setMotors(LOW, LOW, LOW, LOW, 0, 0); }
+
+void setMotors(bool in1, bool in2, bool in3, bool in4, int spA, int spB) {
+  digitalWrite(IN1, in1);
+  digitalWrite(IN2, in2);
+  digitalWrite(IN3, in3);
+  digitalWrite(IN4, in4);
+  analogWrite(ENA, spA);
+  analogWrite(ENB, spB);
+}
