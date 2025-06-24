@@ -1,0 +1,74 @@
+#include <BluetoothSerial.h>
+BluetoothSerial BT;
+
+#define IN1 26
+#define IN2 27
+#define IN3 32
+#define IN4 33
+#define ENA 25
+#define ENB 23
+
+int currentSpeed = 200;
+char command;
+
+void setup() {
+  Serial.begin(115200);
+  BT.begin("ESP32-RC-CAR");
+
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+
+  // Attach ENA and ENB with PWM using ledcAttach
+  ledcAttach(ENA, 5000, 8);  // Pin, freq, resolution
+  ledcAttach(ENB, 5000, 8);
+
+  stopMotors();
+}
+
+void loop() {
+  if (BT.available()) {
+    char c = BT.read();
+    if (c >= '0' && c <= '9') currentSpeed = (c - '0') * 25;
+    else if (c == 'q') currentSpeed = 255;
+    else {
+      command = c;
+      handle(command);
+    }
+  }
+}
+
+void handle(char c) {
+  switch (c) {
+    case 'F': forward(); break;
+    case 'B': backward(); break;
+    case 'L': rotateLeft(); break;
+    case 'R': rotateRight(); break;
+    case 'S': stopMotors(); break;
+    case 'G': forwardLeft(); break;
+    case 'I': forwardRight(); break;
+    case 'H': backwardLeft(); break;
+    case 'J': backwardRight(); break;
+    case 'D': stopMotors(); break;
+  }
+}
+
+void forward()        { setMotors(HIGH, LOW, HIGH, LOW, currentSpeed, currentSpeed); }
+void backward()       { setMotors(LOW, HIGH, LOW, HIGH, currentSpeed, currentSpeed); }
+void rotateLeft()     { setMotors(HIGH, LOW, LOW, HIGH, currentSpeed, currentSpeed); }
+void rotateRight()    { setMotors(LOW, HIGH, HIGH, LOW, currentSpeed, currentSpeed); }
+void forwardLeft()    { setMotors(HIGH, LOW, LOW, LOW, currentSpeed, 0); }
+void forwardRight()   { setMotors(LOW, LOW, HIGH, LOW, 0, currentSpeed); }
+void backwardLeft()   { setMotors(LOW, HIGH, LOW, LOW, currentSpeed, 0); }
+void backwardRight()  { setMotors(LOW, LOW, LOW, HIGH, 0, currentSpeed); }
+void stopMotors()     { setMotors(LOW, LOW, LOW, LOW, 0, 0); }
+
+void setMotors(bool in1, bool in2, bool in3, bool in4, int spA, int spB) {
+  digitalWrite(IN1, in1);
+  digitalWrite(IN2, in2);
+  digitalWrite(IN3, in3);
+  digitalWrite(IN4, in4);
+  ledcWrite(ENA, spA);
+  ledcWrite(ENB, spB);
+}
