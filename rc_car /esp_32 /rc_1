@@ -20,7 +20,6 @@ void setup() {
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
 
-  // Attach ENA and ENB with PWM using ledcAttach
   ledcAttach(ENA, 5000, 8);  // Pin, freq, resolution
   ledcAttach(ENB, 5000, 8);
 
@@ -41,15 +40,15 @@ void loop() {
 
 void handle(char c) {
   switch (c) {
-    case 'F': forward(); break;
-    case 'B': backward(); break;
-    case 'L': rotateLeft(); break;
-    case 'R': rotateRight(); break;
+    case 'F': backward(); break;          // Reversed
+    case 'B': forward(); break;           // Reversed
+    case 'L': rotateLeft(); break;        // Normal (not reversed)
+    case 'R': rotateRight(); break;       // Normal (not reversed)
     case 'S': stopMotors(); break;
-    case 'G': forwardLeft(); break;
-    case 'I': forwardRight(); break;
-    case 'H': backwardLeft(); break;
-    case 'J': backwardRight(); break;
+    case 'G': backwardRight(); break;     // Reversed
+    case 'I': backwardLeft(); break;      // Reversed
+    case 'H': forwardRight(); break;      // Reversed
+    case 'J': forwardLeft(); break;       // Reversed
     case 'D': stopMotors(); break;
   }
 }
