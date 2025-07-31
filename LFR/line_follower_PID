@@ -1,5 +1,5 @@
 
-// === Sensor Pins ===
+// === Sensor Pins ===.
 #define SENSOR_OUTER_RIGHT 12
 #define SENSOR_INNER_RIGHT 11
 #define SENSOR_CENTER      13
