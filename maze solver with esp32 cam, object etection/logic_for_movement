@@ -1,0 +1,111 @@
+// --- Sensor Pins ---
+const int trigFront = 27; const int echoFront = 14;
+const int trigLeft = 12;  const int echoLeft = 13;
+const int trigRight = 25; const int echoRight = 26;
+
+// --- L298N Motor Pins (UPDATE THESE) ---
+const int motorLeft1 = 32;  // IN1
+const int motorLeft2 = 33;  // IN2
+const int motorRight1 = 22; // IN3
+const int motorRight2 = 23; // IN4
+
+// --- Threshold ---
+const int THRESHOLD = 20; // 20 cm distance rule
+
+void setup() {
+  Serial.begin(115200);
+  
+  // Initialize Sensor Pins
+  pinMode(trigFront, OUTPUT); pinMode(echoFront, INPUT);
+  pinMode(trigLeft, OUTPUT);  pinMode(echoLeft, INPUT);
+  pinMode(trigRight, OUTPUT); pinMode(echoRight, INPUT);
+
+  // Initialize Motor Pins
+  pinMode(motorLeft1, OUTPUT); pinMode(motorLeft2, OUTPUT);
+  pinMode(motorRight1, OUTPUT); pinMode(motorRight2, OUTPUT);
+  
+  Serial.println("Maze Solver Ready!");
+}
+
+void loop() {
+  int distFront = getDistance(trigFront, echoFront);
+  int distLeft = getDistance(trigLeft, echoLeft);
+  int distRight = getDistance(trigRight, echoRight);
+
+  // Print for debugging
+  Serial.print("L: "); Serial.print(distLeft);
+  Serial.print(" | F: "); Serial.print(distFront);
+  Serial.print(" | R: "); Serial.println(distRight);
+
+  // --- MAZE SOLVING LOGIC ---
+  if (distFront > THRESHOLD || distFront == 0) {
+    // Path ahead is clear (or sensor timed out/0 means very far)
+    moveForward();
+  } 
+  else if (distLeft > THRESHOLD || distLeft == 0) {
+    // Front blocked, left is open
+    turnLeft();
+  } 
+  else if (distRight > THRESHOLD || distRight == 0) {
+    // Front & left blocked, right is open
+    turnRight();
+  } 
+  else {
+    // Dead end (all sides < 20cm)
+    turnAround();
+  }
+  
+  delay(50); // Small delay for stability
+}
+
+// --- SENSOR FUNCTION ---
+int getDistance(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  long duration = pulseIn(echoPin, HIGH, 30000); 
+  if (duration == 0) return 0; 
+  return duration * 0.034 / 2;
+}
+
+// --- MOTOR FUNCTIONS ---
+void moveForward() {
+  Serial.println("Action: Forward");
+  digitalWrite(motorLeft1, HIGH); digitalWrite(motorLeft2, LOW);
+  digitalWrite(motorRight1, HIGH); digitalWrite(motorRight2, LOW);
+}
+
+void turnLeft() {
+  Serial.println("Action: Turn Left");
+  // Left motor backwards, Right motor forwards
+  digitalWrite(motorLeft1, LOW); digitalWrite(motorLeft2, HIGH);
+  digitalWrite(motorRight1, HIGH); digitalWrite(motorRight2, LOW);
+  delay(500); // Adjust time to achieve exactly 90 degrees
+  stopMotors();
+}
+
+void turnRight() {
+  Serial.println("Action: Turn Right");
+  // Left motor forwards, Right motor backwards
+  digitalWrite(motorLeft1, HIGH); digitalWrite(motorLeft2, LOW);
+  digitalWrite(motorRight1, LOW); digitalWrite(motorRight2, HIGH);
+  delay(500); // Adjust time to achieve exactly 90 degrees
+  stopMotors();
+}
+
+void turnAround() {
+  Serial.println("Action: U-Turn / Reverse");
+  // Both motors backward
+  digitalWrite(motorLeft1, LOW); digitalWrite(motorLeft2, HIGH);
+  digitalWrite(motorRight1, LOW); digitalWrite(motorRight2, HIGH);
+  delay(800); // Back up or spin 180
+  stopMotors();
+}
+
+void stopMotors() {
+  digitalWrite(motorLeft1, LOW); digitalWrite(motorLeft2, LOW);
+  digitalWrite(motorRight1, LOW); digitalWrite(motorRight2, LOW);
+}
