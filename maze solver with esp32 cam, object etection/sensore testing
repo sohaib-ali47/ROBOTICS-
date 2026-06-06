@@ -1,0 +1,64 @@
+// Front Sensor Pins
+const int trigFront = 27;
+const int echoFront = 14;
+
+// Left Sensor Pins
+const int trigLeft = 12;
+const int echoLeft = 13;
+
+// Right Sensor Pins
+const int trigRight = 25;
+const int echoRight = 26;
+
+void setup() {
+  Serial.begin(115200); 
+  
+  // This line proves the ESP32 is alive before sensors even fire
+  Serial.println("ESP32 Sensor Test Starting..."); 
+  
+  pinMode(trigFront, OUTPUT);
+  pinMode(echoFront, INPUT);
+  
+  pinMode(trigLeft, OUTPUT);
+  pinMode(echoLeft, INPUT);
+  
+  pinMode(trigRight, OUTPUT);
+  pinMode(echoRight, INPUT);
+}
+
+void loop() {
+  int distFront = getDistance(trigFront, echoFront);
+  int distLeft = getDistance(trigLeft, echoLeft);
+  int distRight = getDistance(trigRight, echoRight);
+
+  // Print outputs safely even if disconnected
+  Serial.print("Left: ");
+  Serial.print(distLeft);
+  Serial.print(" cm  |  Front: ");
+  Serial.print(distFront);
+  Serial.print(" cm  |  Right: ");
+  Serial.print(distRight);
+  Serial.println(" cm");
+
+  delay(500); 
+}
+
+int getDistance(int trigPin, int echoPin) {
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+  
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+  
+  // CRITICAL FIX: The '30000' is a timeout. 
+  // If no sensor is attached, it gives up after 30ms and returns 0.
+  long duration = pulseIn(echoPin, HIGH, 30000); 
+  
+  if (duration == 0) {
+    return 0; // Sensor disconnected or out of range
+  }
+  
+  int distance = duration * 0.034 / 2;
+  return distance;
+}
