@@ -1,0 +1,39 @@
+#define ENA 3
+#define IN1 4
+#define IN2 5
+#define IN3 6
+#define IN4 7
+#define ENB 9
+
+char command;
+int currentSpeed = 200;
+
+void setup() {
+  Serial.begin(9600);   // ✅ USB Serial instead of Bluetooth
+
+  pinMode(ENA, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(ENB, OUTPUT);
+
+  stopMotors();
+}
+
+void loop() {
+  if (Serial.available()) {   // ✅ CHANGED
+    char c = Serial.read();   // ✅ CHANGED
+
+    if (c >= '0' && c <= '9') {
+      currentSpeed = (c - '0') * 25;
+    }
+    else if (c == 'q') {
+      currentSpeed = 255;
+    }
+    else {
+      command = c;
+      handle(command);
+    }
+  }
+}
